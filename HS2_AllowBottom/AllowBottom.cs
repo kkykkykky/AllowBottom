@@ -8,6 +8,6 @@ namespace AllowBottom
         public const string GAME = "HS2";
         public const string GAMEPROCRESS = "HoneySelect2";
         public const string STUDIOPROCESS = "StudioNEOV2";
-        private const string TYPENAME = "<ChangeClothesBotAsync>d__490";
+        private static readonly string[] typeNames = { "<ChangeClothesBotAsync>d__490", "<ChangeClothesInnerBAsync>d__494" };
     }
 }

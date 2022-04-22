@@ -16,7 +16,7 @@ namespace AllowBottom
     [BepInProcess(STUDIOPROCESS)]
     public partial class AllowBottom : BaseUnityPlugin
     {
-        public const string VERSION = "0.1.0";
+        public const string VERSION = "0.2.0";
         //public new static ManualLogSource Logger;
         public static ConfigEntry<bool> alwaysAllowBot { get; set; }
 
@@ -26,22 +26,32 @@ namespace AllowBottom
             var harmony = new Harmony(nameof(AllowBottom));
             harmony.PatchAll(typeof(AllowBottom));
 
-            var iteratorType = typeof(AIChara.ChaControl).GetNestedType(TYPENAME, AccessTools.all);
-            var iteratorMethod = AccessTools.Method(iteratorType, "MoveNext");
             var harmonyMethod = new HarmonyMethod(typeof(AllowBottom), nameof(AllowBottomChange));
-            harmony.Patch(iteratorMethod, transpiler: harmonyMethod);
+
+            foreach (string typeName in typeNames)
+            {
+                var iteratorType = typeof(AIChara.ChaControl).GetNestedType(typeName, AccessTools.all);
+                var iteratorMethod = AccessTools.Method(iteratorType, "MoveNext");
+                harmony.Patch(iteratorMethod, transpiler: harmonyMethod);
+            }
 
             alwaysAllowBot = Config.Bind("Setting", "Always allow bottom", false, new ConfigDescription("When enabled, bottom clothing is always allowed regardless of top."));
         }
 
-        //Set notBot flag to false regardless of KeyType.Coordinate value for the current top
+        //Set notBot and notInnerB flag to false regardless of KeyType.Coordinate value for the current top and inner top
         [HarmonyPatch(typeof(AIChara.ChaControl), nameof(AIChara.ChaControl.ChangeAlphaMask2))]
         [HarmonyPatch(typeof(AIChara.ChaControl), nameof(AIChara.ChaControl.SetClothesState))]
         [HarmonyPatch(typeof(AIChara.ChaControl), nameof(AIChara.ChaControl.UpdateVisible))]
+        [HarmonyPatch(typeof(AIChara.ChaControl), nameof(AIChara.ChaControl.AddClothesStateKind))]
+        [HarmonyPatch(typeof(AIChara.ChaControl), nameof(AIChara.ChaControl.GetNowClothesType))]
         [HarmonyPrefix]
         public static void yesBottom(AIChara.ChaControl __instance)
         {
-            if (alwaysAllowBot.Value) __instance.notBot = false;
+            if (alwaysAllowBot.Value)
+            {
+                __instance.notBot = false;
+                __instance.notInnerB = false;
+            }
         }
 
         //Enable bottom and inner bottom sub menus in Character Creator regardless of KeyType.Coordinate value for the current top
@@ -60,7 +70,7 @@ namespace AllowBottom
             for (var i = 0; i < codes.Count; i++)
             {
                 if (flagFound) break;
-                if (codes[i].opcode == OpCodes.Ldc_I4_S && codes[i].operand.ToString() == "28") //find KeyType.Coordinate in order to locate the desired flag
+                if (codes[i].opcode == OpCodes.Ldc_I4_S && codes[i].operand.ToString() == "28") //find KeyType.Coordinate in order to locate the desired bool flag
                 {
                     for (var j = i; j < codes.Count; j++)
                     {
